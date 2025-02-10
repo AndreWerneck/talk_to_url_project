@@ -25,6 +25,9 @@ else:
 # Storage for indexed sites
 index_storage: Dict[str, Dict] = {}
 
+#chat history dict
+chat_history: Dict[str,Dict] = {}
+
 @api.post("/index_url/")
 def index_url(url: str):
     """Indexes the extracted text by creating embeddings and storing them in FAISS."""
@@ -69,6 +72,44 @@ def ask(url: str, question: str):
     prompt = f"Based exclusively on the context given answer in ONE phrase: {question}. \n Context:\n{context}"
 
     response = llm(prompt,max_tokens=128)['choices'][0]['text']
+    
+    return {"answer": response}#
+            #'cossim': cossine_similarity[0][0].item(),
+            #'most_similar_paragraph': sentences[I[0][0]]}
+
+@api.get("/chat/")
+def chat(url:str, question:str, user_id:str = 'defaultuser', number_stored_queries:int=5):
+    """Handle follow-up questions using chat memory"""
+    if url not in index_storage:
+        return {"error": "URL not indexed. Please index it first."}
+    
+    query_embedding = model.encode([question],convert_to_numpy=True)
+    query_embedding_norm = np.linalg.norm(query_embedding, axis=1, keepdims=True)
+    query_emb = query_embedding / query_embedding_norm
+    faiss_index = index_storage[url]["faiss_index"]
+    sentences = index_storage[url]["sentences"]
+    
+    cossine_similarity, I = faiss_index.search(query_emb, k=1)
+    context = "\n".join(sentences[i] for i in I[0])
+
+    if user_id not in chat_history:
+        chat_history[user_id] = {}
+    if url not in chat_history[user_id]:
+        chat_history[user_id][url] = []
+    
+    chat_history[user_id][url].append(f"User : {question}")
+
+    past_conversation = "\n".join(chat_history[user_id][url][-number_stored_queries:])
+
+    prompt = f"""Based on the context and on the past conversation given, answer in ONE phrase: {question}.
+    
+    Context:\n{context}
+
+    Last questions:\n{past_conversation}
+    """
+    response = llm(prompt,max_tokens=128)['choices'][0]['text']
+
+    chat_history[user_id][url].append(f"LLM : {response}")
     
     return {"answer": response}#
             #'cossim': cossine_similarity[0][0].item(),
