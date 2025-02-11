@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import faiss
 import numpy as np
 from typing import Dict
@@ -13,6 +13,7 @@ class DocumentIndexer:
         
         self.index_storage: Dict[str, Dict] = {}
         self.sentence_transformer = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
     
     def get_text(self,url: str) -> list[str] | Dict[str, str]:
         
@@ -63,7 +64,7 @@ class DocumentIndexer:
         
         return {"message": "URL indexed successfully"}
     
-    def retrieve_text(self, url:str, question:str, top_k:int=1) -> Dict[str,str]:
+    def retrieve_text(self, url:str, question:str, top_k:int=3,n_paragraphs_as_context:int=1) -> Dict[str,str]:
         
         """Finds the best matching paragraph based on the question using FAISS search engine based on cosine similarity.
         
@@ -84,8 +85,15 @@ class DocumentIndexer:
         final_question_embedding = question_embedding / question_embedding_norm
         faiss_index = self.index_storage[url]["faiss_index"]
         paragraphs = self.index_storage[url]["paragraphs"]
-        
-        cossine_similarity, I = faiss_index.search(final_question_embedding, k=top_k)
-        context = "\n".join(paragraphs[i] for i in I[0])
 
-        return {'context':context, 'cossine_similarity':f'{cossine_similarity}'}
+        cossine_similarity, I = faiss_index.search(final_question_embedding, k=top_k)
+        
+        retrieved_paragraphs = [paragraphs[i] for i in I[0]]
+        pairs = [(question,paragraph) for paragraph in retrieved_paragraphs]
+        rerank_scores = self.reranker.predict(pairs)
+
+        sorted_paragraphs = [x for _, x in sorted(zip(rerank_scores, retrieved_paragraphs), reverse=True)]
+        
+        context = "\n".join(sorted_paragraphs[:n_paragraphs_as_context])
+
+        return {'context':context, 'cossine_similarity':f'{cossine_similarity[0][:n_paragraphs_as_context]}', 'rerank_scores':f'{rerank_scores[:n_paragraphs_as_context]}'}
