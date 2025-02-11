@@ -1,116 +1,69 @@
 from fastapi import FastAPI
-import requests
-from bs4 import BeautifulSoup
-from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
+from document_indexer import DocumentIndexer
+from llm_handler import LLMHandler
+from chat_handler import ChatHandler
 from typing import Dict
-import os
-from llama_cpp import Llama
+
+document_indexer = DocumentIndexer()
+llm_handler = LLMHandler()
+chat_handler = ChatHandler()
 
 api = FastAPI()
 
-# Load the embedding model
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-
-MODEL_PATH = "models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
-
-llm = None
-if os.path.exists(MODEL_PATH):
-    llm = Llama(model_path=MODEL_PATH,n_ctx=2048,verbose=False)
-    print("✅ LLM Loaded Successfully")
-else:
-    print("❌ Model file not found! Download it to 'models/'")
-
-# Storage for indexed sites
-index_storage: Dict[str, Dict] = {}
-
-#chat history dict
-chat_history: Dict[str,Dict] = {}
-
 @api.post("/index_url/")
-def index_url(url: str):
+def index_url(url: str) -> Dict[str, str]:
     """Indexes the extracted text by creating embeddings and storing them in FAISS."""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        text = [p.get_text() for p in soup.find_all("p")]    
-        sentences = text#.split("\n")
-
-        embeddings = model.encode(sentences, convert_to_numpy=True)
-        norm_embeddings = np.linalg.norm(embeddings,axis=1,keepdims=True)
-        emb = embeddings / norm_embeddings
-        d = emb.shape[1]
-        faiss_index = faiss.IndexFlatIP(d)
-        faiss_index.add(emb)
-
-        index_storage[url] = {
-            "faiss_index": faiss_index,
-            "sentences": sentences,
-            "embeddings": embeddings
-        }
-
-        return {"message": "URL indexed successfully"}
-    except requests.RequestException as e:
-        return {"error": f"Failed to fetch URL: {e}"}
+    return document_indexer.index_url(url)
 
 @api.get("/ask/")
-def ask(url: str, question: str):
-    """Finds the most relevant sentence based on the question using FAISS."""
-    if url not in index_storage:
-        return {"error": "URL not indexed. Please index it first."}
+def ask(url: str, question: str) -> Dict[str, str]:
+    """The chatbot's response to the user's question."""
     
-    query_embedding = model.encode([question],convert_to_numpy=True)
-    query_embedding_norm = np.linalg.norm(query_embedding, axis=1, keepdims=True)
-    query_emb = query_embedding / query_embedding_norm
-    faiss_index = index_storage[url]["faiss_index"]
-    sentences = index_storage[url]["sentences"]
-    
-    cossine_similarity, I = faiss_index.search(query_emb, k=1)
-    context = "\n".join(sentences[i] for i in I[0])
-    prompt = f"Based exclusively on the context given answer in ONE phrase: {question}. \n Context:\n{context}"
+    retrieval_dict = document_indexer.retrieve_text(url, question)
 
-    response = llm(prompt,max_tokens=128)['choices'][0]['text']
+    prompt = f"""Based only on the context given, answer in ONE phrase: {question}.
     
-    return {"answer": response}#
-            #'cossim': cossine_similarity[0][0].item(),
-            #'most_similar_paragraph': sentences[I[0][0]]}
+    If the answer is not in the context, please respond with 'I don't have enough information'.
+    
+    Context:\n{retrieval_dict['context']}
+    """
+
+    response = llm_handler.query_llm(prompt)
+
+    return {"answer" : response}
 
 @api.get("/chat/")
-def chat(url:str, question:str, user_id:str = 'defaultuser', number_stored_queries:int=5):
+def chat(url:str, question:str, user_id:str = 'defaultuser', max_messages_to_store:int=10) -> Dict[str, str]:
     """Handle follow-up questions using chat memory"""
-    if url not in index_storage:
-        return {"error": "URL not indexed. Please index it first."}
-    
-    query_embedding = model.encode([question],convert_to_numpy=True)
-    query_embedding_norm = np.linalg.norm(query_embedding, axis=1, keepdims=True)
-    query_emb = query_embedding / query_embedding_norm
-    faiss_index = index_storage[url]["faiss_index"]
-    sentences = index_storage[url]["sentences"]
-    
-    cossine_similarity, I = faiss_index.search(query_emb, k=1)
-    context = "\n".join(sentences[i] for i in I[0])
 
-    if user_id not in chat_history:
-        chat_history[user_id] = {}
-    if url not in chat_history[user_id]:
-        chat_history[user_id][url] = []
+    retrieval_dict = document_indexer.retrieve_text(url, question)
+
+    chat_history = chat_handler.get_chat_history(user_id, url)
+
+    past_conversation = chat_history['chat_history']
+
+    prompt = f"""Based only on both the context and the past conversation given, answer in ONE phrase: {question}.
     
-    chat_history[user_id][url].append(f"User : {question}")
-
-    past_conversation = "\n".join(chat_history[user_id][url][-number_stored_queries:])
-
-    prompt = f"""Based on the context and on the past conversation given, answer in ONE phrase: {question}.
+    If the answer is not in the context or in the past conversation, please respond with 'I don't have enough information'.
     
-    Context:\n{context}
+    Context:\n{retrieval_dict['context']}
 
-    Last questions:\n{past_conversation}
+    Past conversation:\n{past_conversation}
     """
-    response = llm(prompt,max_tokens=128)['choices'][0]['text']
 
-    chat_history[user_id][url].append(f"LLM : {response}")
+    response = llm_handler.query_llm(prompt)
+
+    chat_handler.store_message(user_id, url, question, response, max_messages_to_store)
+
+    return {"answer" : response}
+
+@api.get("/get_chat_history/")
+def get_chat_history(user_id:str, url:str) -> Dict[str, str]:
+    """Retrieves the chat history for a given user and url."""
+    return chat_handler.get_chat_history(user_id, url)
+
+@api.get("/get_retrieval_text_and_similarity/")
+def get_retrieval_text_and_similarity(url:str, question:str) -> Dict[str, str]:
+    """Retrieves the best matching paragraph based on the question using FAISS."""
+    return document_indexer.retrieve_text(url, question)
     
-    return {"answer": response}#
-            #'cossim': cossine_similarity[0][0].item(),
-            #'most_similar_paragraph': sentences[I[0][0]]}
