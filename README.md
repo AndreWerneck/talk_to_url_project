@@ -43,7 +43,7 @@ Once the model is installed, start the API server with:
 uvicorn main:api --reload
 ```
 This runs the FastAPI application on `http://127.0.0.1:8000/`.
-For the first time it will take a little time because it will load the model for the first time. Afterwards, it will take less time on the other times.
+For the first time it will take a little time because it will load the model. Afterwards, it will take less time.
 
 ### **Interacting with the API**
 After launching the API, you can interact using:
