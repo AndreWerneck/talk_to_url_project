@@ -29,6 +29,8 @@ python3 llm_install.py
 ```
 ⏳ **Installation time:** ~25-30 minutes (requires at least 4GB of disk space and 6GB+ RAM).
 
+**It would be easier to create a folder called "models" inside your project and store the model there.**
+
 ---
 
 ## Running the API
@@ -45,6 +47,106 @@ After launching the API, you can interact using:
 - **Jupyter Notebook** (`use_api.ipynb` contains examples and results)
 - **cURL requests**
 
+---
+
+## API Endpoints Documentation
+
+### **1️⃣ Index URL Content**
+**Endpoint:** `POST /index_url/`
+- **Description:** Extracts text from the given URL, creates embeddings, and stores them for retrieval.
+- **Parameters:**
+  - `url` (string, required): The webpage URL to index.
+- **Example Request:**
+  ```bash
+  curl -X POST "http://127.0.0.1:8000/index_url/?url=https://en.wikipedia.org/wiki/Brazil"
+  ```
+- **Response:**
+  ```json
+  {"message": "URL indexed successfully"}
+  ```
+
+---
+
+### **2️⃣ Ask a Question**
+**Endpoint:** `GET /ask/`
+- **Description:** Finds the most relevant content for a question using FAISS and queries the LLM.
+- **Parameters:**
+  - `url` (string, required): The indexed URL to retrieve text from.
+  - `question` (string, required): The user’s question.
+- **Example Request:**
+  ```bash
+  curl "http://127.0.0.1:8000/ask/?url=https://en.wikipedia.org/wiki/Brazil&question=What%20is%20the%20population%20of%20Brazil?"
+  ```
+- **Response:**
+  ```json
+  {"answer": "The population of Brazil is approximately 210.86 million as of 2022."}
+  ```
+
+---
+
+### **3️⃣ Chat (Follow-Up Questions Support)**
+**Endpoint:** `GET /chat/`
+- **Description:** Enables a conversation where follow-up questions are remembered.
+- **Parameters:**
+  - `url` (string, required): The indexed URL.
+  - `question` (string, required): The user’s question.
+  - `user_id` (string, optional): The user’s unique identifier (default: `defaultuser`).
+  - `max_messages_to_store` (int, optional): Number of messages to retain in memory (default: `10`).
+- **Example Request:**
+  ```bash
+  curl "http://127.0.0.1:8000/ask/?url=https://en.wikipedia.org/wiki/Brazil&question=What%20is%20the%20population%20of%20Brazil?&user_id=user123"
+  ```
+- **Response:**
+  ```json
+  {"answer": "The population of Brazil is approximately 210.86 million as of 2022."}
+  ```
+
+- **Example Follow-up question:**
+  ```bash
+  curl "http://127.0.0.1:8000/ask/?url=https://en.wikipedia.org/wiki/Brazil&question=and%20how%20big%20is%20its%20territory?&user_id=user123"
+  ```
+- **Response:**
+  ```json
+  {"answer": "The territory of Brazil covers an area of approximately 8.5 million square kilometers."}
+  ```
+
+---
+
+### **4️⃣ Get Chat History**
+**Endpoint:** `GET /get_chat_history/`
+- **Description:** Retrieves the stored conversation for a given user and URL.
+- **Parameters:**
+  - `user_id` (string, required): The user’s unique identifier.
+  - `url` (string, required): The indexed URL.
+- **Example Request:**
+  ```bash
+  curl "http://127.0.0.1:8000/get_chat_history/?user_id=user123&url=https://en.wikipedia.org/wiki/Brazil"
+  ```
+- **Response:**
+  ```json
+  {"chat_history": "User: What is the population of Brazil?\nChatbot: The population of Brazil is approximately 210.86 million as of 2022."}
+  ```
+
+---
+
+### **5️⃣ Retrieve Text and Similarity Score**
+**Endpoint:** `GET /get_retrieval_text_and_similarity/`
+- **Description:** Retrieves the best matching paragraph based on the question using FAISS.
+- **Parameters:**
+  - `url` (string, required): The indexed URL.
+  - `question` (string, required): The question to retrieve relevant text.
+- **Example Request:**
+  ```bash
+  curl "http://127.0.0.1:8000/get_retrieval_text_and_similarity/?url=https://en.wikipedia.org/wiki/Brazil&question=What%20is%20the%20GDP%20of%20Brazil?"
+  ```
+- **Response:**
+  ```json
+  {
+    "context": "Brazil's GDP was $1.8 trillion in 2023...",
+    "cossine_similarity": "[0.7869417]",
+    "rerank_scores": "[8.908005]"
+  }
+  ```
 ---
 
 ## Overview
@@ -141,8 +243,6 @@ Additionally, two extra API endpoints were added:
 2. **Chat history retrieval endpoint** – Fetches stored user conversations for debugging or UX improvements.
 
 ---
-Abaixo, segue um resumo dos motivos que levaram à escolha dos modelos.
-
 ## Justification for Model Choices
 
 ### **1️⃣ SentenceTransformer: all-MiniLM-L6-v2**
