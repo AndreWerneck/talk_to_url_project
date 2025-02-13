@@ -27,7 +27,7 @@ pip install -r requirements.txt
 ### **Step 3: Install the Local LLM**
 This project uses **Mistral 7B Instruct (4-bit quantized) via llama-cpp**. To install the model, run:
 ```bash
-python3 llm_install.py
+python llm_install.py
 ```
 ⏳ **Installation time:** ~25-30 minutes (requires at least 4GB of disk space and 6GB+ RAM).
 
