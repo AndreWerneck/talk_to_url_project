@@ -31,7 +31,7 @@ python3 llm_install.py
 ```
 ⏳ **Installation time:** ~25-30 minutes (requires at least 4GB of disk space and 6GB+ RAM).
 
-**It would be easier to create a folder called "models" inside your project and store the model there.**
+**It would be easier to create a folder called "models" inside your project and store the model there.** Running the code above will also make it for you.
 
 ---
 
