@@ -31,7 +31,7 @@ python3 llm_install.py
 ```
 ⏳ **Installation time:** ~25-30 minutes (requires at least 4GB of disk space and 6GB+ RAM).
 
-**It would be easier to create a folder called "models" inside your project and store the model there.**
+**It would be easier to create a folder called "models" inside your project and store the model there.** Running the code above will also make it for you.
 
 ---
 
@@ -43,7 +43,7 @@ Once the model is installed, start the API server with:
 uvicorn main:api --reload
 ```
 This runs the FastAPI application on `http://127.0.0.1:8000/`.
-For the first time it will take a little time because it will load the model for the first time. Afterwards, it will take less time on the other times.
+For the first time it will take a little time because it will load the model. Afterwards, it will take less time.
 
 ### **Interacting with the API**
 After launching the API, you can interact using:
