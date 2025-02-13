@@ -1,5 +1,5 @@
 # Talk to URL Project - Documentation
-
+**Author : André Costa Werneck**
 ---
 
 ## Installation Guide
@@ -12,6 +12,8 @@ source talk_to_url_env/bin/activate  # On Mac/Linux
 # OR
 talk_to_url_env\Scripts\activate  # On Windows
 ```
+
+**Do not forget to add you venv name to the gitignore file!**
 
 ### **Step 2: Install Dependencies**
 Ensure that Python **3.11.9 or higher** is installed.
@@ -41,6 +43,7 @@ Once the model is installed, start the API server with:
 uvicorn main:api --reload
 ```
 This runs the FastAPI application on `http://127.0.0.1:8000/`.
+For the first time it will take a little time because it will load the model for the first time. Afterwards, it will take less time on the other times.
 
 ### **Interacting with the API**
 After launching the API, you can interact using:
