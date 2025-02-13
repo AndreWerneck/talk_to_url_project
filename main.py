@@ -39,6 +39,12 @@ def ask(url: str, question: str) -> Dict[str, str]:
     prompt = f"""Based only on the context given, answer in ONE phrase: {question}.
     
     If the answer is not in the context, please respond with 'I don't have enough information'.
+
+    Use all the relevant information in the context to answer the question.
+
+    Give a short and concise answer.
+
+    Do not repeat the question in the answer.
     
     Context:\n{retrieval_dict['context']}
     """
@@ -70,6 +76,12 @@ def chat(url:str, question:str, user_id:str = 'defaultuser', max_messages_to_sto
     prompt = f"""Based only on both the context and the past conversation given, answer in ONE phrase: {question}.
     
     If the answer is not in the context or in the past conversation, please respond with 'I don't have enough information'.
+
+    Use all the relevant information in the context to answer the question.
+
+    Give a short and concise answer.
+
+    Do not repeat the question in the answer.
     
     Context:\n{retrieval_dict['context']}
 
