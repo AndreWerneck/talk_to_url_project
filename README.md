@@ -15,6 +15,9 @@ talk_to_url_env\Scripts\activate  # On Windows
 
 ### **Step 2: Install Dependencies**
 Ensure that Python **3.11.9 or higher** is installed.
+
+After it, install all the depencies by making
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -22,7 +25,7 @@ pip install -r requirements.txt
 ### **Step 3: Install the Local LLM**
 This project uses **Mistral 7B Instruct (4-bit quantized) via llama-cpp**. To install the model, run:
 ```bash
-python llm_install.py
+python3 llm_install.py
 ```
 ⏳ **Installation time:** ~25-30 minutes (requires at least 4GB of disk space and 6GB+ RAM).
 
@@ -39,16 +42,8 @@ This runs the FastAPI application on `http://127.0.0.1:8000/`.
 
 ### **Interacting with the API**
 After launching the API, you can interact using:
-- **Jupyter Notebook** (`use_api.ipynb` contains examples)
+- **Jupyter Notebook** (`use_api.ipynb` contains examples and results)
 - **cURL requests**
-- **Postman or any HTTP client**
-
----
-
-## Future Improvements
-- **Optimize LLM speed** (better batching, reduce token count)
-- **Deploy online** (using GPU-based cloud services)
-- **Enhance retrieval with multi-query expansion**
 
 ---
 
@@ -180,4 +175,3 @@ Abaixo, segue um resumo dos motivos que levaram à escolha dos modelos.
 This project provides a basic but efficient **RAG-based conversational interface** to interact with website content. It utilizes **FAISS retrieval, reranking, and a local LLM** to generate accurate answers. The API is **modular trying to be as efficient and scalable as possible** for future enhancements.
 
 🚀 **Try out the API using the `use_api.ipynb` notebook!**
-
