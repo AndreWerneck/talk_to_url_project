@@ -45,7 +45,7 @@ class LLMHandler:
             r'^\s*User:\s*',  # Removes "User:"
             r'^\s*Chatbot:\s*',  # Removes "Chatbot:"
             r'^\s*System:\s*',  # Removes "System:"
-            r'^\s*A:\s*',  # Removes "AI:"
+            r'^\s*A:\s*',  # Removes "A:"
         ]
 
         # Apply regex substitutions

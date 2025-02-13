@@ -23,7 +23,7 @@ class DocumentIndexer:
             url (str): The URL to fetch the text from.
         
         Returns:
-            list[str]: A list of extracted text from the URL in paragraphs.
+            list[str]: A list of extracted text from the URL in paragraphs. It returns a dict with an error message if the URL fetching fails.
         """
 
         try:
@@ -49,8 +49,8 @@ class DocumentIndexer:
 
         paragraphs = self.get_text(url)
         p_embeddings = self.sentence_transformer.encode(paragraphs, convert_to_numpy=True)
-        p_embeddings_norm = np.linalg.norm(p_embeddings, axis=1, keepdims=True)
-        final_p_embeddings = p_embeddings / p_embeddings_norm
+        p_embeddings_norm = np.linalg.norm(p_embeddings, axis=1, keepdims=True) 
+        final_p_embeddings = p_embeddings / p_embeddings_norm # normalize the paragraph embeddings
         dim = final_p_embeddings.shape[1]
         faiss_index = faiss.IndexFlatIP(dim) # Index for inner product similarity -> cosine similarity after vector normalization
         faiss_index.add(final_p_embeddings)
@@ -71,28 +71,29 @@ class DocumentIndexer:
         Args:
             url (str): The URL to retrieve the text from.
             question (str): The question to find the best matching paragraph.
-            top_k (int): The number of top matching paragraphs to return.
+            top_k (int): The number of top matching paragraphs to feed the reranker.
+            n_paragraphs_as_context (int): The number of paragraphs to return as context.
         
         Returns:
-            Dict[str, str|np.ndarray]: The best matching paragraphs based on the question and their respective cosine similarity with the query.
+            Dict[str, str]: The best matching paragraphs based on the question and their respective cosine similarity and relevance score with the query.
         """
 
         if url not in self.index_storage:
             raise ValueError("URL not indexed. Please index the URL first.")
         
         question_embedding = self.sentence_transformer.encode([question], convert_to_numpy=True)
-        question_embedding_norm = np.linalg.norm(question_embedding, axis=1, keepdims=True)
-        final_question_embedding = question_embedding / question_embedding_norm
-        faiss_index = self.index_storage[url]["faiss_index"]
+        question_embedding_norm = np.linalg.norm(question_embedding, axis=1, keepdims=True) 
+        final_question_embedding = question_embedding / question_embedding_norm # normalize the question embedding
+        faiss_index = self.index_storage[url]["faiss_index"] 
         paragraphs = self.index_storage[url]["paragraphs"]
 
-        cossine_similarity, I = faiss_index.search(final_question_embedding, k=top_k)
+        cossine_similarity, I = faiss_index.search(final_question_embedding, k=top_k) # get the top-k similar paragraphs based on cosine similarity
         
         retrieved_paragraphs = [paragraphs[i] for i in I[0]]
-        pairs = [(question,paragraph) for paragraph in retrieved_paragraphs]
-        rerank_scores = self.reranker.predict(pairs)
+        pairs = [(question,paragraph) for paragraph in retrieved_paragraphs] # create pairs of question and paragraphs for reranking
+        rerank_scores = self.reranker.predict(pairs) # rerank the top-k paragraphs based on relevance score with the question
 
-        sorted_paragraphs = [x for _, x in sorted(zip(rerank_scores, retrieved_paragraphs), reverse=True)]
+        sorted_paragraphs = [x for _, x in sorted(zip(rerank_scores, retrieved_paragraphs), reverse=True)] # sort the paragraphs based on relevance score on reverse order
         
         context = "\n".join(sorted_paragraphs[:n_paragraphs_as_context])
 

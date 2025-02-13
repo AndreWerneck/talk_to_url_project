@@ -16,7 +16,7 @@ class ChatHandler:
             url (str): The URL of the text document.
             question (str): The user's question.
             answer (str): The chatbot's answer.
-            max_messages_to_store (int): The maximum number of messages to store in the chat history. Defaults to 5.
+            max_messages_to_store (int): The maximum number of messages to store in the chat history. Defaults to 10.
         """
         
         if user_id not in self.chat_history:
@@ -38,7 +38,7 @@ class ChatHandler:
             url (str): The URL of the text document.
         
         Returns:
-            Dict[str,list[str]]: The chat history for the given user and URL.
+            Dict[str,str]: The chat history for the given user and URL.
         """
         
         if user_id in self.chat_history and url in self.chat_history[user_id]:
